@@ -1,10 +1,10 @@
 package com.codewithmosh.store.dtos;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 
-@Getter
-@AllArgsConstructor
+@Data
 public class ProductDto {
     Long id;
     String name;
