@@ -9,6 +9,8 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel="spring")
 public interface CartMapper {
+//    @Mapping(target = "items",expression = "items") It is not needed b/c attribute in both Cart and CartItem are the same
+    @Mapping(target = "totalPrice",expression = "java(cart.findTotalPrice())")
     CartDto toDto(Cart cart);
     @Mapping(target="totalPrice",expression = "java(cartItem.getTotalPrice())")
     CartItemDto toDto(CartItem cartItem);
