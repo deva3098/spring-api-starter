@@ -6,6 +6,8 @@ import com.codewithmosh.store.dtos.UserDto;
 import com.codewithmosh.store.mappers.UserMapper;
 import com.codewithmosh.store.repositories.UserRepository;
 import com.codewithmosh.store.services.JwtService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,15 +29,24 @@ public class AuthController {
     private final UserMapper userMapper;
 
     @PostMapping("/login")
-    public ResponseEntity<JsonResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<JsonResponse> login(@Valid @RequestBody LoginRequest request,
+                                              HttpServletResponse response) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
                         request.getPassword())
         );
         var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
-        var token = jwtService.generateToken(user);
-        return ResponseEntity.ok(new JsonResponse(token));
+        var accessToken = jwtService.generateAccessToken(user);
+        var refreshToken = jwtService.generateRefreshToken(user);
+        var cookie = new Cookie("refreshToken", refreshToken);
+        cookie.setPath("/auth/refresh");
+        cookie.setHttpOnly(true);
+        cookie.setMaxAge(604800);
+        cookie.setSecure(true); //https
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok(new JsonResponse(accessToken));
     }
     @PostMapping("/validate")
     public boolean validate(@RequestHeader("Authorization") String authHeader){
