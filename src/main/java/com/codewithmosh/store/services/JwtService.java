@@ -8,6 +8,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.AllArgsConstructor;
+import org.antlr.v4.runtime.Token;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,32 +18,30 @@ import java.util.Date;
 @AllArgsConstructor
 public class JwtService{
     private final JwtConfig jwtConfig;
-    public String generateAccessToken(User user){
+    public Jwt generateAccessToken(User user){
 
         return generateToken(user, jwtConfig.getAccessTokenExpiration());
     }
-    public String generateRefreshToken(User user){
+    public Jwt generateRefreshToken(User user){
         return generateToken(user, jwtConfig.getRefreshTokenExpiration());
     }
-    private String generateToken(User user, long tokenExpiration) {
-        return Jwts.builder()
-                .subject(user.getId().toString())
-                .claim("email", user.getEmail())
-                .claim("name", user.getName())
-                .claim("role", user.getRole())
+    private Jwt generateToken(User user, long tokenExpiration) {
+        var claims = Jwts.claims().
+                subject(user.getId().toString())
+                .add("email", user.getEmail())
+                .add("name",user.getName())
+                .add("role",user.getRole())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 1000 * tokenExpiration))
-                .signWith(jwtConfig.getSecretKey())
-                .compact();
+                .build();
+        return new Jwt(claims, jwtConfig.getSecretKey());
     }
-
-    public boolean validateToken(String token){
-        try {
+    public Jwt parseToken(String token){
+        try{
             var claims = getClaims(token);
-            return claims.getExpiration().after(new Date());
-        }
-        catch (JwtException e){
-            return false;
+            return new Jwt(claims, jwtConfig.getSecretKey());
+        }catch (JwtException exception){
+            return null;
         }
     }
 
@@ -54,12 +53,4 @@ public class JwtService{
                 .getPayload();
     }
 
-    public Long getUserIdFromToken(String token){
-        var claims = getClaims(token);
-        return Long.valueOf(claims.getSubject());
-    }
-    public Role getRoleFromToken(String token){
-        var claims = getClaims(token);
-        return Role.valueOf(claims.get("role",String.class));
-    }
 }
