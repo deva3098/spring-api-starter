@@ -1,7 +1,7 @@
 package com.codewithmosh.store.controllers;
 
 import com.codewithmosh.store.config.JwtConfig;
-import com.codewithmosh.store.dtos.JsonResponse;
+import com.codewithmosh.store.dtos.JwtResponse;
 import com.codewithmosh.store.dtos.LoginRequest;
 import com.codewithmosh.store.dtos.UserDto;
 import com.codewithmosh.store.mappers.UserMapper;
@@ -16,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,8 +30,8 @@ public class AuthController {
     private final UserMapper userMapper;
 
     @PostMapping("/login")
-    public ResponseEntity<JsonResponse> login(@Valid @RequestBody LoginRequest request,
-                                              HttpServletResponse response) {
+    public ResponseEntity<JwtResponse> login(@Valid @RequestBody LoginRequest request,
+                                             HttpServletResponse response) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -48,13 +47,19 @@ public class AuthController {
         cookie.setSecure(true); //https
         response.addCookie(cookie);
 
-        return ResponseEntity.ok(new JsonResponse(accessToken));
+        return ResponseEntity.ok(new JwtResponse(accessToken));
     }
-    @PostMapping("/validate")
-    public boolean validate(@RequestHeader("Authorization") String authHeader){
-        System.out.println("Validating Data");
-        var token = authHeader.replace("Bearer ", "");
-        return  jwtService.validateToken(token);
+    @PostMapping("/refresh")
+    public ResponseEntity<JwtResponse> refresh(
+            @CookieValue(value = "refreshToken") String refreshToken
+    ){
+        if(!jwtService.validateToken(refreshToken)){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        var userId = jwtService.getUserIdFromToken(refreshToken);
+        var user = userRepository.findById(userId).orElseThrow();
+        var accessToken = jwtService.generateAccessToken(user);
+        return  ResponseEntity.ok(new JwtResponse(accessToken));
     }
     @GetMapping("/me")
     public ResponseEntity<UserDto> me(){
